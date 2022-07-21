@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<th:block th:replace="~{/layout/basic :: setContent(~{this::content})}">
+
+    <th:block th:fragment="content">
+
+        <h1 class="mt-4">Movie Read Page</h1>
+
+        <div class="form-group">
+            <label>Title</label>
+            <input type="text" class="form-control" name="title" th:value="${dto.title}" readonly>
+        </div>
+
+        <div class="form-group">
+            <label>Review Count</label>
+            <input type="text" class="form-control" name="reviewCnt" th:value="${dto.reviewCnt}"
+        </div>
+
+        <div class="form-group">
+            <label>Avg</label>
+            <input type="text" class="form-control" name="avg" th:value="${dto.avg}">
+        </div>
+
+        <style>
+            .uploadResult{
+                width: 100%;
+                background-color: gray;
+                margin-top: 10px;
+            }
+
+            .uploadResult ul {
+                display: flex;  /* 가로 방향으로 배치되고, 자신이 가진 내용물의 width만큼만 차지하게 됨 */
+                flex-flow: row;  /* 아이템을 행방향으로 배치 */
+                justify-content: center; /* 아이템을 가운데로 정렬 */
+                vertical-align: top;
+                overflow: auto;
+            }
+
+            .uploadResult ul li {
+                list-style: none;  /* li의 아무 기호 없음 */
+                padding: 10px;
+                margin-left: 2em;  /* em : 해당폰트의 대문자 M의 너비 기준 */
+            }
+
+            .uploadResult ul li img {
+                width: 100px;
+            }
+        </style>
+
+        <div class="uploadResult">
+            <ul>
+                <li th:each="movieImage : ${dto.imageDTOList}" th:data-file="${movieImage.getThumbnailURL()}">
+                    <img th:if="${movieImage.path != null}" th:src="|/display?fileName=${movieImage.getThumbnailURL()}|">
+                </li>
+            </ul>
+        </div>
+
+        <button type="button" class="btn btn-primary">
+            Review Count : <span class="badge badge-light">[[${dto.reviewCnt}]]</span>
+        </button>
+
+        <!--영화리뷰 등록 버튼 (모달창 보여주기)-->
+        <button type="button" class="btn btn-info addReviewBtn">Review Resister</button>
+
+        <!--영화리뷰 List-->
+        <div class="list-group reviewList">
+
+        </div>
+
+        <!-- 리뷰처리를 위한 모달 시작 -->
+        <div class="reviewModal modal" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Movie Review</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Reviewer ID</label>
+                            <input type="text" class="form-control" name="mid">
+                        </div>
+                        <div class="form-group">
+                            <label>Grade<span class="grade"></span></label>
+                            <div class="starrr"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Review Text</label>
+                            <input type="text" class="form-control" name="text" placeholder="Good Movie!">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary reviewSaveBtn">Save Changes</button>
+                        <button type="button" class="btn btn-warning modifyBtn">Modify</button>
+                        <button type="button" class="btn btn-danger removeBtn">Remove</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 리뷰처리를 위한 모달 끝 -->
+
+        <!-- 영화이미지 클릭시 화면에 보여주기 모달 시작 -->
+        <div class="imageModal modal" tabindex="-2" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Picture</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 영화이미지 클릭시 화면에 보여주기 모달 끝 -->
+        <script th:src="@{/starrr.js}"></script>
+        <link th:href="@{/css/starrr.css}" rel="stylesheet">
+        <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.2.0/css/font-awesome.min.css">
+        <script>
+            $(document).ready(function(e){
+                var grade = 0;
+                var mno = [[${dto.mno}]];   //영화순번
+
+                //영화리뷰 모달
+                $(".starrr").starrr({
+                    rating : grade,
+                    change : function(e, value){    //별 체크시 값 변경됨
+                        if(value){
+                            console.log(value);
+                            grade = value;
+                        }
+                    }
+                });
+
+                var reviewModal = $(".reviewModal");        //영화리뷰 모달
+                var inputMid = $("input[name='mid']");      //아이디
+                var inputText = $("input[name='text']");    //리뷰내용
+
+                //리뷰등록 버튼 클릭
+                $(".addReviewBtn").click(function(){
+                    inputMid.val("");   //아이디 초기화
+                    inputText.val("");  //리뷰내용 초기화
+
+                    $(".removeBtn, .modifyBtn").hide(); // 삭제, 수정버튼 숨기기
+                    $(".reviewSaveBtn").show();         //저장버튼 보여주기
+
+                    reviewModal.modal("show");          //리뷰모달 보여주기
+                });
+
+                //리뷰저장버튼 클릭시
+                $(".reviewSaveBtn").click(function(){
+
+                    var data = {
+                        mno : mno,              //영화순번
+                        grade : grade,          //평점
+                        text : inputText.val(), //리뷰내용
+                        mid : inputMid.val()    //이메일 아이디
+                    };
+
+                    console.log(data);
+
+                    $.ajax({
+                        url : "/reviews/" + mno,
+                        type : "post",
+                        data : JSON.stringify(data),
+                        contentType : "application/json; charest=utf-8",
+                        dataType : "text",
+                        success : function(result){
+                            console.log(result);
+
+                            self.location.reload();     //새로고침
+                        }
+                    })
+                    reviewModal.modal("hide");  //영화리뷰 모달창 숨기기
+
+                });
+
+                //영화 리뷰List 조회
+                function getMovieReviews(){
+                    function formatTime(str){
+                        var date = new Date(str);
+
+                        return date.getFullYear() + '/'
+                            + date.getMonth() + 1 + '/'
+                            + date.getDate() + ' '
+                            + date.getHours() + ':'
+                            + date.getMinutes();
+                    }
+
+                    $.getJSON("/reviews/" + mno + "/all", function(arr){
+                        var str = "";
+
+                        $.each(arr, function(idx, review){
+
+                            console.log(review);
+
+                            str += "<div class='card-body' data-reviewnum='"+review.reviewnum+"' data-mid='"+review.mid+"'>";
+                            str += "<h5 class='card-title'>"+review.text+" <span>"+review.grade+"</span></h5>";
+                            str += "<h6 class='card-subtitle mb-2 text-muted'>"+review.nickname+"</h6>";
+                            str += "<p class='card-text'>"+formatTime(review.regDate)+"</p>";
+                            str += "</div>";``
+                        });
+
+                        $(".reviewList").html(str);
+                    });
+                }
+
+                getMovieReviews();  //영화 리뷰List 조회
+
+                var reviewnum;  //리뷰순번
+                //영화리뷰 List 클릭시 리뷰내용 보여주기
+                $(".reviewList").on("click", ".card-body", function(){
+                    $(".reviewSaveBtn").hide(); //영화리뷰저장버튼 숨기기
+                    $(".removeBtn, .modifyBtn").show()  //영화리뷰 삭제,수정 버튼 보여주기
+
+                    var targetReview = $(this);
+
+                    reviewnum = targetReview.data("reviewnum");  //리뷰순번
+
+
+                    console.log("reviewnum : " + reviewnum);
+
+                    inputMid.val(targetReview.data("mid")); //member id
+                    /**
+                     * clone() :요소복제
+                     * children() : 자식요소 선택
+                     * remove() : 선택한 요소 html문서에서 제거
+                     * text() : 선택한 요소 안의 내용을 가져오거나 다른 내용으로 바꿈 (태그까지 모두 보여줌)
+                     * html() : 선택한 요소 안의 내용을 가져오거나 다른 내용으로 바꿈 (태그를 적용한 모습으로 보여줌)
+                     */
+                    inputText.val(targetReview.find(".card-title").clone().children().remove().end().text());   //리뷰내용
+
+                    var grade = targetReview.find(".card-title span").html();   //점수
+
+                    /**
+                     * :nth-child(n) -> 형제요소 중 n번째 요소들을 선택하는 선택자
+                     * trigger(eventName) : 강제로 이벤트(eventName) 발생
+                     */
+                    $(".starrr a:nth-child("+grade+")").trigger("click");   //별점 체크해주기
+
+                    $(".reviewModal").modal("show");    //영화리뷰 모달 보여주기
+
+                });
+
+                //영화리뷰 수정 버튼 클릭시
+                $(".modifyBtn").on("click", function(){
+                     var data = {
+                       reviewnum :reviewnum,
+                       mno : mno,
+                       grade : grade,
+                       text : inputText.val(),
+                       mid : inputMid.val()
+                     };
+
+                     console.log(data);
+
+                     $.ajax({
+                         url : "/reviews/" + mno + "/" + reviewnum,
+                         type : "PUT",      //수정
+                         data : JSON.stringify(data),
+                         contentType : "application/json; charset=utf-8",
+                         dataType : "text",
+                         success : function(result){
+                             console.log("result :" + result);
+
+                             self.location.reload();
+                         }
+                     })
+                    reviewModal.modal("hide");
+                });
+
+                //영화리뷰 삭제버튼 클릭시
+                $(".removeBtn").on("click", function(){
+                    var data = {
+                      reviewnum : reviewnum
+                    };
+
+                    $.ajax({
+                        url : "/reviews/" + mno+ "/" + reviewnum,
+                        type : "DELETE",                    //삭제
+                        cotentType : "application/json; charset=utf-8",
+                        dataType : "text",
+                        success : function(result){
+                            console.log("Delete result :" + result);
+
+                            self.location.reload();
+                        }
+                    })
+                });
+                reviewModal.modal("hide");  //영화리뷰창 숨기기
+
+            });
+
+            //섬네일 이미지 클릭시 원본이미지 보여주기
+            $(".uploadResult li").click(function(){
+                var file = $(this).data("file");
+
+                console.log(file);
+
+                $(".imageModal .modal-body").html("<img style='width:100%' src='/display?fileName=" + file + "&size=1'>");
+
+                $(".imageModal").modal("show");
+            });
+
+        </script>
+
+    </th:block>
+
+</th:block>
